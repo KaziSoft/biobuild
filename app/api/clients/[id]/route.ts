@@ -4,24 +4,13 @@ import connectMongo from '@/lib/mongoose';
 import Client from '@/models/Client';
 import cloudinary from '@/lib/cloudinary';
 
-// Helper function to extract ID from URL
-function extractIdFromUrl(request: NextRequest): string {
-  const url = new URL(request.url);
-  const pathSegments = url.pathname.split('/');
-  return pathSegments[pathSegments.length - 1];
-}
-
-// GET a single client
-export async function GET(request: NextRequest) {
+export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   try {
     await connectMongo();
-    const id = extractIdFromUrl(request);
-    const client = await Client.findById(id);
-
+    const client = await Client.findById(params.id);
     if (!client) {
       return NextResponse.json({ message: 'Client not found' }, { status: 404 });
     }
-
     return NextResponse.json(client);
   } catch (error) {
     console.error('GET client error:', error);
@@ -30,11 +19,10 @@ export async function GET(request: NextRequest) {
 }
 
 // UPDATE a client
-export async function PUT(request: NextRequest) {
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     await connectMongo();
-    const id = extractIdFromUrl(request);
-    const formData = await request.formData();
+    const formData = await req.formData();
 
     const name = formData.get('name') as string;
     const file = formData.get('image') as File | null;
@@ -50,12 +38,13 @@ export async function PUT(request: NextRequest) {
           if (error) reject(error);
           else resolve(result);
         }).end(buffer);
+
       });
 
       updateData.image = uploadRes.secure_url;
     }
 
-    const updatedClient = await Client.findByIdAndUpdate(id, updateData, { new: true });
+    const updatedClient = await Client.findByIdAndUpdate(params.id, updateData, { new: true });
 
     if (!updatedClient) {
       return NextResponse.json({ message: 'Client not found' }, { status: 404 });
@@ -69,12 +58,11 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE a client
-export async function DELETE(request: NextRequest) {
+export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
   try {
     await connectMongo();
-    const id = extractIdFromUrl(request);
 
-    const deleted = await Client.findByIdAndDelete(id);
+    const deleted = await Client.findByIdAndDelete(params.id);
 
     if (!deleted) {
       return NextResponse.json({ message: 'Client not found' }, { status: 404 });

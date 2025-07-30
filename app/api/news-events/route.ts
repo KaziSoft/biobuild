@@ -42,16 +42,38 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// ✅ POST Handler – unchanged, supports image upload
 export async function POST(req: NextRequest) {
   try {
     await connectMongo();
 
-    const body = await req.json();
-    const { type, title, date, summary, location, image } = body;
+    const formData = await req.formData();
 
-    if (!type || !title || !date || !summary || !image) {
+    const type = formData.get('type') as string;
+    const title = formData.get('title') as string;
+    const date = formData.get('date') as string;
+    const summary = formData.get('summary') as string;
+    const location = formData.get('location') as string;
+    const imageBlob = formData.get('image') as Blob;
+
+    if (!type || !title || !date || !summary || !imageBlob) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
+
+    // Convert Blob to Buffer
+    const buffer = Buffer.from(await imageBlob.arrayBuffer());
+
+    // Upload to Cloudinary
+    const cloudinaryUpload = await new Promise<any>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'news-events' },
+        (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        }
+      );
+      Readable.from(buffer).pipe(stream);
+    });
 
     // Save to MongoDB
     const newItem = new NewsEvent({
@@ -60,15 +82,14 @@ export async function POST(req: NextRequest) {
       date,
       summary,
       location: type === 'event' ? location : '',
-      image, // this is already uploaded to Cloudinary on the client
+      image: cloudinaryUpload.secure_url,
     });
 
     await newItem.save();
 
-    return NextResponse.json({ message: 'News/Event added successfully' }, { status: 201 });
+    return NextResponse.json({ message: 'News/Event added successfully' });
   } catch (error: any) {
     console.error('POST /api/news-events error:', error);
     return NextResponse.json({ message: 'Server error', error: error.message }, { status: 500 });
   }
 }
-
