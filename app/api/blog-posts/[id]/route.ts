@@ -4,27 +4,36 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectMongo from '@/lib/mongoose';
 import BlogPost from '@/models/BlogPost';
 
-export async function GET(
-  _: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  await connectMongo();
-  const { id } = params;
-  const post = await BlogPost.findById(id);
-  if (!post) {
-    return NextResponse.json({ message: 'Not found' }, { status: 404 });
-  }
-  return NextResponse.json(post);
+function extractIdFromUrl(request: NextRequest): string {
+  const url = new URL(request.url);
+  const pathSegments = url.pathname.split('/');
+  const id = pathSegments[pathSegments.length - 1];
+  return id;
 }
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
     await connectMongo();
-    const { id } = params;
-    const data = await req.json();
+    const id = extractIdFromUrl(request);
+    const post = await BlogPost.findById(id);
+    if (!post) {
+      return NextResponse.json({ message: 'Not found' }, { status: 404 });
+    }
+    return NextResponse.json(post);
+  } catch (error) {
+    console.error('GET error:', error);
+    return NextResponse.json(
+      { message: 'Failed to fetch post' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    await connectMongo();
+    const id = extractIdFromUrl(request);
+    const data = await request.json();
     const updatedPost = await BlogPost.findByIdAndUpdate(id, data, {
       new: true,
     });
@@ -38,13 +47,10 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  _: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest) {
   try {
     await connectMongo();
-    const { id } = params;
+    const id = extractIdFromUrl(request);
     await BlogPost.findByIdAndDelete(id);
     return NextResponse.json({ message: 'Deleted' });
   } catch (error) {
