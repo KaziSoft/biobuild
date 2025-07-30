@@ -4,11 +4,18 @@ import connectMongo from '@/lib/mongoose';
 import Client from '@/models/Client';
 import cloudinary from '@/lib/cloudinary';
 
+// Helper function to extract ID from URL
+function extractIdFromUrl(request: NextRequest): string {
+  const url = new URL(request.url);
+  const pathSegments = url.pathname.split('/');
+  return pathSegments[pathSegments.length - 1];
+}
+
 // GET a single client
-export async function GET(_: NextRequest, context: { params: { id: string } }) {
+export async function GET(request: NextRequest) {
   try {
     await connectMongo();
-    const { id } = await context.params;
+    const id = extractIdFromUrl(request);
     const client = await Client.findById(id);
 
     if (!client) {
@@ -23,11 +30,11 @@ export async function GET(_: NextRequest, context: { params: { id: string } }) {
 }
 
 // UPDATE a client
-export async function PUT(req: NextRequest, context: { params: { id: string } }) {
+export async function PUT(request: NextRequest) {
   try {
     await connectMongo();
-    const { id } = await context.params;
-    const formData = await req.formData();
+    const id = extractIdFromUrl(request);
+    const formData = await request.formData();
 
     const name = formData.get('name') as string;
     const file = formData.get('image') as File | null;
@@ -62,10 +69,10 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
 }
 
 // DELETE a client
-export async function DELETE(_: NextRequest, context: { params: { id: string } }) {
+export async function DELETE(request: NextRequest) {
   try {
     await connectMongo();
-    const { id } = await context.params;
+    const id = extractIdFromUrl(request);
 
     const deleted = await Client.findByIdAndDelete(id);
 

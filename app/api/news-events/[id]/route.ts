@@ -9,24 +9,35 @@ import connectMongo from '@/lib/mongoose';
 import NewsEvent from '@/models/NewsEvent';
 import cloudinary from '@/lib/cloudinary';
 
+// Helper function to extract ID from URL
+function extractIdFromUrl(request: NextRequest): string {
+  const url = new URL(request.url);
+  const pathSegments = url.pathname.split('/');
+  return pathSegments[pathSegments.length - 1];
+}
+
 // GET: Single News/Event
-export async function GET(_: NextRequest, context: { params: { id: string } }) {
-  await connectMongo();
-  const { id } = await context.params;
-  const item = await NewsEvent.findById(id);
-  if (!item) return NextResponse.json({ message: 'Not found' }, { status: 404 });
-  return NextResponse.json(item);
+export async function GET(request: NextRequest) {
+  try {
+    await connectMongo();
+    const id = extractIdFromUrl(request);
+    const item = await NewsEvent.findById(id);
+    if (!item) {
+      return NextResponse.json({ message: 'Not found' }, { status: 404 });
+    }
+    return NextResponse.json(item);
+  } catch (error) {
+    console.error('GET error:', error);
+    return NextResponse.json({ message: 'Failed to fetch item' }, { status: 500 });
+  }
 }
 
 // PUT: Update News/Event
-// PUT: Update News/Event
-export async function PUT(req: NextRequest, context: { params: { id: string } }) {
+export async function PUT(request: NextRequest) {
   try {
     await connectMongo();
-    
-    const { id } = await context.params;
-
-    const body = await req.json();
+    const id = extractIdFromUrl(request);
+    const body = await request.json();
 
     const { type, title, date, summary, location, image } = body;
 
@@ -54,12 +65,11 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
   }
 }
 
-
 // DELETE: Remove News/Event
-export async function DELETE(_: NextRequest, context: { params: { id: string } }) {
+export async function DELETE(request: NextRequest) {
   try {
     await connectMongo();
-    const { id } = await context.params;
+    const id = extractIdFromUrl(request);
     await NewsEvent.findByIdAndDelete(id);
     return NextResponse.json({ message: 'Deleted' });
   } catch (error) {
